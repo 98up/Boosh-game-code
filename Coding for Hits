@@ -1,0 +1,92 @@
+local Murakumogiri = script.Parent.Parent
+local Debounce = false
+local Animations = script.Animations
+local IdleEvent = game.ReplicatedStorage.remote.idleremote
+local hitbox = require(game.ReplicatedStorage.Modules.ModuleScript)
+local VFX = game.ReplicatedStorage.Vfx
+
+
+local Configuration = {
+	Dmg = 25;
+	EachHitCd = 2.2
+}
+
+
+
+local function applyVelocity(hrp, velocityZ)
+	if hrp then
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "CryoVelocityAttachment"
+		attachment.Parent = hrp
+
+		local velocity = Instance.new("LinearVelocity")
+		velocity.Attachment0 = attachment
+		velocity.MaxForce = math.huge
+		velocity.RelativeTo = Enum.ActuatorRelativeTo.Attachment0
+		velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+		velocity.VectorVelocity = Vector3.new(0, 0, velocityZ)
+		velocity.Parent = hrp
+
+		task.delay(0.15, function()
+			velocity:Destroy()
+			attachment:Destroy()
+		end)
+	end
+end
+
+local function OnCallhit(att, tar)
+	local Thrp = tar:FindFirstChild("HumanoidRootPart")
+
+	
+end
+
+Murakumogiri.Activated:Connect(function()
+	if Debounce == false then
+		Debounce = true
+		
+		local character = Murakumogiri.Parent
+		
+		local Humanoid = character:FindFirstChild("Humanoid")
+		local Animator = Humanoid:FindFirstChild("Animator")
+		local AnimationTrack = Animator:LoadAnimation(Animations.Swing1)
+		local Hrp = character:FindFirstChild("HumanoidRootPart")
+		
+		
+		
+		AnimationTrack:Play()
+		
+		
+		AnimationTrack:GetMarkerReachedSignal("SpawnHitbox"):Connect(function()
+			applyVelocity(Hrp, -15.5)
+			hitbox.HitStart(character, Murakumogiri, Configuration.Dmg, OnCallhit)
+			local SlashV = VFX.MeshVfx.Slashes.MeshPart:Clone()
+			local LookDirection = Hrp.CFrame.LookVector
+			
+			SlashV.CFrame = CFrame.lookAt(Hrp.Position , Hrp.Position  + LookDirection) * CFrame.Angles(0, math.rad(90), 0) * CFrame.new(7, -1, 0)
+			SlashV.Parent = workspace.VFXStores
+			
+			game.Debris:AddItem(SlashV, 0.7)
+			local Tween = game:GetService("TweenService"):Create(SlashV, TweenInfo.new(0.7, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {Transparency = 1})
+			Tween:Play()
+		end)
+		
+		AnimationTrack:GetMarkerReachedSignal("DespawnHitbox"):Connect(function()
+			hitbox.HitStop()
+		end)
+		
+		
+		
+		Humanoid.WalkSpeed = 3
+		Humanoid.JumpPower = 0
+		
+		AnimationTrack.Stopped:Connect(function()
+			Humanoid.WalkSpeed = game.StarterPlayer.CharacterWalkSpeed
+			Humanoid.JumpPower = game.StarterPlayer.CharacterJumpPower
+			
+			task.delay(Configuration.EachHitCd, function()
+				Debounce = false
+				
+			end)
+		end)
+	end
+end)
