@@ -1,0 +1,94 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local CameraShaker = require(ReplicatedStorage:FindFirstChild("Modules").CameraShaker)
+local ServerEvent = ReplicatedStorage:FindFirstChild("remote"):FindFirstChild("GrimArc")
+local FOVEvent = ReplicatedStorage:FindFirstChild("remote"):FindFirstChild("GrimArcFOV")
+local db = false
+local FlashScreen = game.Players.LocalPlayer.PlayerGui:FindFirstChild("FlashScreen").FlashFrame
+
+
+local Configuation = {
+	Cooldown = 5;
+	CamShakeMagnitude = 2
+	
+}
+
+
+
+
+
+
+local camShake = CameraShaker.new(
+	Enum.RenderPriority.Camera.Value,
+	function(shakeCFrame)
+		Camera.CFrame = Camera.CFrame * shakeCFrame
+	end
+)
+camShake:Start()
+
+local function FlashTween()
+	FlashScreen.BackgroundTransparency = 0
+	local tween = TweenService:Create(FlashScreen, TweenInfo.new(0.9, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {BackgroundTransparency = 1})
+	tween:Play()
+end
+
+local function FovTween(targetFOV, tweenInfo)
+	local tween = TweenService:Create(Camera, tweenInfo, {FieldOfView = targetFOV})
+	tween:Play()
+end
+
+
+FOVEvent.OnClientEvent:Connect(function(action)
+	if action == "ZoomIn" then
+		FovTween(50, TweenInfo.new(0.3, Enum.EasingStyle.Linear, Enum.EasingDirection.In))
+
+	elseif action == "ZoomOut" then
+		FovTween(70, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+
+	elseif action == "BigFlash" then
+		FovTween(120, TweenInfo.new(0.1, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out))
+
+		FlashTween()
+		camShake:ShakeOnce(
+			Configuation.CamShakeMagnitude, 
+			10, 
+			0.05, 
+			1.5, 
+			Vector3.new(1, 1, 1),
+			Vector3.new(1, 1, 1)  
+		)
+
+		task.delay(5, function()
+			FovTween(70, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out))
+		end)
+	end
+end)
+
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local ServerEvent = game.ReplicatedStorage.remote:FindFirstChild("GrimArc") 
+
+local db = false
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if not player.Character or not player.Character:FindFirstChild("Murakumogiri") then return end
+
+	local isKeyboardR = input.KeyCode == Enum.KeyCode.R
+	local isGamepadR2 = input.KeyCode == Enum.KeyCode.ButtonL2
+
+	if isKeyboardR or isGamepadR2 then
+		if db then return end
+
+		db = true
+		ServerEvent:FireServer()
+
+		task.delay(Configuation.Cooldown, function()
+			db = false
+		end)
+	end
+end)
