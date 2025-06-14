@@ -1,0 +1,113 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Event = ReplicatedStorage.remote:FindFirstChild("GrimArc")
+local FOVEvent = ReplicatedStorage:FindFirstChild("remote"):FindFirstChild("GrimArcFOV")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Moduels = ReplicatedStorage.Modules
+local Shb = require(Moduels.SlashHitbox)
+local CameraShaker = require(Moduels.CameraShaker)
+local Ragdollian = require(Moduels.Ragdoll)
+local Db = false
+
+
+local function characterFlashEffect(char)
+	for _, descendant in pairs(char:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			local originalTransparency = descendant.Transparency
+			descendant.Transparency = 1
+			
+			task.delay(0.3, function()
+				descendant.Transparency = originalTransparency
+			end)
+		end
+	end
+end
+
+local function OnSlashHit(att, tar)
+	local AttHrp = att:FindFirstChild("HumanoidRootPart")
+	characterFlashEffect(att)
+	AttHrp.CFrame = tar.HumanoidRootPart.CFrame * CFrame.new(0,0,-3)
+	
+
+end
+
+local function SpawnArc(player, hrp, character)
+	local Arc = ReplicatedStorage.Vfx.MeshVfx.SwordSlashes.GrimArc.swordslashmeshori:Clone()
+	local Velocity = Instance.new("LinearVelocity")
+	local Att = Instance.new("Attachment")
+	local Ori = Instance.new("AlignOrientation")
+
+	Att.Parent = Arc
+
+	Ori.Attachment0 = Att
+	Ori.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	Ori.Responsiveness = 200
+	Ori.RigidityEnabled = true
+	Ori.Parent = Arc
+
+	local baseCFrame = hrp.CFrame * CFrame.Angles(0, 0, math.rad(30))
+	Arc.CFrame = baseCFrame
+	Ori.CFrame = baseCFrame.Rotation
+
+	Velocity.Attachment0 = Att
+	Velocity.MaxForce = math.huge
+	Velocity.VectorVelocity = hrp.CFrame.LookVector * 150
+	Velocity.Name = "GrimArcVelocity"
+	Velocity.Parent = Arc
+	
+	Shb.HitStart(character, Arc, 30, OnSlashHit)
+	
+	Arc.CanCollide = false
+	Arc.Anchored = false
+	Arc.Parent = workspace.VFXStores
+
+	
+	FOVEvent:FireClient(player, "BigFlash")
+
+	Debris:AddItem(Arc, 3)
+	wait(3)
+	Shb.HitStop()
+end
+
+Event.OnServerEvent:Connect(function(player)
+	
+		
+		
+		local Char = player.Character
+		if not Char then return end
+
+		local Hum = Char:FindFirstChild("Humanoid")
+		local Hrp = Char:FindFirstChild("HumanoidRootPart")
+		if not Hum or not Hrp then return end
+
+		local Animator = Hum:FindFirstChild("Animator")
+		local Anim = script.GrimAnim
+		local AnimationTrack = Animator:LoadAnimation(Anim)
+
+
+		FOVEvent:FireClient(player, "ZoomIn")
+
+
+		Hum.WalkSpeed = 0
+		Hum.JumpPower = 0
+		Hum.JumpHeight = 0
+
+		AnimationTrack:Play()
+		
+	
+
+
+		AnimationTrack:GetMarkerReachedSignal("SpawnArcORGiantHit"):Connect(function()
+			SpawnArc(player, Hrp, Char)
+		end)
+
+		AnimationTrack.Stopped:Connect(function()
+			FOVEvent:FireClient(player, "ZoomOut")
+
+			Hum.WalkSpeed = 16
+			Hum.JumpPower = 50
+			Hum.JumpHeight = 7.2
+		end)
+	
+	
+end)
